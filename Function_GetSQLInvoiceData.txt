@@ -45,9 +45,9 @@ Set rst = qdf.OpenRecordset(dbOpenDynaset, dbSeeChanges)
 'Debug.Print TempVars!InvAmount
 
 Exit_errortrap:
+    rst.Close
     Set qdf = Nothing
     Set rst = Nothing
-    rst.Close
     Exit Function
 ErrorTrap:
     Dim myerror As Error
