@@ -1,0 +1,67 @@
+Function GetSQLInvoiceData(intInvoiceNo)
+'My Passthrough Query
+On Error GoTo ErrorTrap
+
+Dim qdf As DAO.QueryDef
+Dim rst As DAO.Recordset
+Dim strConnect As String
+Dim strSQL As String
+Dim strServer As String
+Dim strDatabase As String
+
+strServer = "ALTIRA-SQL-01"
+strDatabase = "BW2014"
+
+strConnect = "ODBC;DRIVER={ODBC Driver 11 for SQL Server};SERVER=" & strServer & _
+  ";DATABASE=" & strDatabase & ";Trusted_Connection=Yes;"
+
+strSQL = "SELECT dbo.Invoices.invNumber, dbo.Invoices.invAmount, dbo.Transactions.transID, dbo.Transactions.transType As Type, dbo.Transactions.transCustAcronym As CustID, " & _
+            "dbo.Transactions.transDate, dbo.Transactions.transAmount As Amount, dbo.Payments.payReference As Reference, dbo.Payments.payCheckNumber As CheckNo " & _
+         "FROM dbo.Invoices, dbo.Transactions, dbo.Payments " & _
+         "WHERE dbo.Invoices.invNumber = " & intInvoiceNo & " AND dbo.Invoices.invID = dbo.Transactions.transRef2 AND dbo.Payments.payID = dbo.Transactions.transRef1 " & _
+         "ORDER BY dbo.Transactions.transID;"
+
+Debug.Print strSQL
+
+If Not QueryExists("qryInvoicePayments") Then
+    Set qdf = CurrentDb.CreateQueryDef("qryInvoicePayments")
+Else
+    Set qdf = CurrentDb.QueryDefs("qryInvoicePayments")
+    'qdf.Parameters("invNumber").Value = intInvoiceNo
+End If
+
+qdf.SQL = strSQL
+qdf.Connect = strConnect
+
+'Get Invoice Amount
+Set rst = qdf.OpenRecordset(dbOpenDynaset, dbSeeChanges)
+    
+    If rst.BOF And rst.EOF Then
+        GoTo Exit_errortrap
+    Else
+        TempVars!InvAmount = CCur(rst!InvAmount)
+    End If
+    
+'Debug.Print TempVars!InvAmount
+
+Exit_errortrap:
+    Set qdf = Nothing
+    Set rst = Nothing
+    rst.Close
+    Exit Function
+ErrorTrap:
+    Dim myerror As Error
+    For Each myerror In DBEngine.Errors
+        With myerror
+            Debug.Print myerror
+            If .Number <> 3146 Then
+                MsgBox "An unexpected error has occurred." & _
+                    vbCrLf & "Please note the following details:" & _
+                    vbCrLf & vbCrLf & "Error Number: " & Err.Number & _
+                    vbCrLf & "Description: " & Err.Description, vbCritical, "Error"
+            End If
+        End With
+    Next
+    Resume Exit_errortrap
+        
+End Function
